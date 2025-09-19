@@ -4,9 +4,8 @@
 #include <filesystem>
 
 // Inclure les headers du SDK
-#include "ins_media.h"   // selon le nom exact dans include du SDK
-#include "ins_video_stitcher.h"
-#include "ins_photo_stitcher.h"
+#include "ins_stitcher.h"   // Contains VideoStitcher and ImageStitcher classes
+#include "ins_common.h"     // Contains common types and enums
 
 namespace fs = std::filesystem;
 
@@ -61,18 +60,23 @@ int main(int argc, char* argv[]) {
     } else if (ext == ".insp" || ext == ".jpg") {
         std::cout << "Converting photo: " << input << std::endl;
 
-        auto photoStitcher = std::make_shared<ins::PhotoStitcher>();
+        auto imageStitcher = std::make_shared<ins::ImageStitcher>();
 
         std::vector<std::string> inputs = { input };
-        photoStitcher->SetInputPath(inputs);
+        imageStitcher->SetInputPath(inputs);
 
         std::string output_path = (fs::path(output_dir) / (fs::path(input).stem().string() + ".jpg")).string();
-        photoStitcher->SetOutputPath(output_path);
+        imageStitcher->SetOutputPath(output_path);
 
-        photoStitcher->EnableStitchFusion(true);
+        imageStitcher->EnableStitchFusion(true);
 
-        photoStitcher->StartStitch();
-        std::cout << "Export finished: " << output_path << std::endl;
+        bool success = imageStitcher->Stitch();
+        if (success) {
+            std::cout << "Export finished: " << output_path << std::endl;
+        } else {
+            std::cerr << "Error during image stitching" << std::endl;
+            return 1;
+        }
     } else {
         std::cerr << "Unsupported file type: " << ext << "\n";
         return 1;

@@ -2,8 +2,9 @@ FROM nvidia/cuda:12.1.1-devel-ubuntu22.04
 
 # Installer dépendances de base
 RUN apt-get update && apt-get install -y \
-    build-essential cmake git \
+    build-essential cmake git pkg-config \
     libtiff5 libegl1 libxext6 libvulkan1 freeglut3-dev vulkan-tools libdc1394-25 \
+    libpng-dev libpng16-16 \
     && rm -rf /var/lib/apt/lists/*
 
 # Définir les chemins
