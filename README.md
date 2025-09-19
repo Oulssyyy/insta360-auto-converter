@@ -23,8 +23,18 @@ See **[SYNOLOGY_SETUP.md](SYNOLOGY_SETUP.md)** for complete setup guide.
 
 ## Prerequisites
 
+- **Linux system** (Ubuntu/Debian preferred) or **Windows with WSL2**
 - Docker (GPU support optional)
 - Insta360 Media SDK (see installation instructions below)
+
+### Platform Compatibility
+
+⚠️ **Linux Only**: This application is designed to run on Linux systems. 
+
+**Windows Users**: You must use Windows Subsystem for Linux (WSL2) to run this application:
+1. Install [WSL2](https://docs.microsoft.com/en-us/windows/wsl/install)
+2. Install Docker Desktop with WSL2 backend
+3. Run all commands from within your WSL2 environment
 
 ## SDK Installation
 

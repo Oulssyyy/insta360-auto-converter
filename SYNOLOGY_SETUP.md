@@ -1,1 +1,310 @@
-# Insta360 Auto Converter for Synology NAS\n\nComplete setup guide for automated Insta360 file conversion on your Synology NAS.\n\n## 📋 Prerequisites\n\n### Synology NAS Requirements\n- **DSM 7.0+** (for better Docker support)\n- **Docker Package** installed from Package Center\n- **Docker Compose** (optional but recommended)\n- **Minimum 2GB RAM** (4GB+ recommended for video processing)\n- **ARM64 or x64 CPU** (Intel/AMD models recommended for better performance)\n\n### Recommended Synology Models\n- **DS918+, DS920+, DS1520+** (Intel Celeron - good performance)\n- **DS220+, DS420+** (Intel Celeron - basic performance)\n- **DS1621+, DS1821+** (AMD Ryzen - excellent performance)\n\n## 🚀 Quick Setup\n\n### 1. Prepare Directory Structure\n\nCreate the following folder structure on your NAS:\n\n```\n/volume1/homes/[your_username]/insta360/\n├── input/          # Put your .insv/.insp files here\n├── output/         # Converted files will appear here\n├── processed/      # Tracking files (don't touch)\n├── config/         # Configuration files\n└── sdk/            # Insta360 SDK (you provide this)\n```\n\n### 2. Install Insta360 SDK\n\n1. Download the **Insta360 Media SDK** from the official Insta360 developer portal\n2. Extract the SDK and copy its contents to:\n   ```\n   /volume1/homes/[your_username]/insta360/sdk/\n   ├── include/\n   ├── lib/\n   └── bin/\n   ```\n\n### 3. Clone and Build\n\n**SSH into your Synology NAS** and run:\n\n```bash\n# Navigate to your home directory\ncd /volume1/homes/[your_username]/\n\n# Clone the repository\ngit clone https://github.com/your-repo/insta360-auto-converter.git\ncd insta360-auto-converter\n\n# Copy your SDK into the project\ncp -r ../insta360/sdk/ ./\n\n# Build the Docker image\nsudo docker build -t insta360-auto-converter .\n```\n\n### 4. Configure Docker Compose\n\nEdit the `docker-compose.yml` file to match your paths:\n\n```yaml\nvolumes:\n  # Update these paths with your actual username\n  - /volume1/homes/YOUR_USERNAME/insta360/input:/data/input:ro\n  - /volume1/homes/YOUR_USERNAME/insta360/output:/data/output\n  - /volume1/homes/YOUR_USERNAME/insta360/processed:/data/processed\n  - /volume1/homes/YOUR_USERNAME/insta360/config:/data/config\n```\n\n### 5. Start the Service\n\n```bash\n# Start the automated batch processor\ndocker-compose up -d\n\n# Check logs\ndocker-compose logs -f\n```\n\n## ⚙️ Configuration\n\nThe system will automatically create a configuration file at `/data/config/config.json`:\n\n```json\n{\n  \"enableGPU\": false,\n  \"outputWidth\": 5760,\n  \"outputHeight\": 2880,\n  \"bitrate\": 50000000,\n  \"maxConcurrentJobs\": 1,\n  \"watchInterval\": 30,\n  \"comment\": \"Insta360 Batch Processor Configuration\"\n}\n```\n\n### Configuration Options\n\n| Option | Description | Recommended Value |\n|--------|-------------|-------------------|\n| `enableGPU` | Use GPU acceleration | `false` (for compatibility) |\n| `outputWidth` | Output video/image width | `5760` (4K) or `3840` (standard) |\n| `outputHeight` | Output video/image height | `2880` (4K) or `1920` (standard) |\n| `bitrate` | Video bitrate in bps | `50000000` (50 Mbps) |\n| `maxConcurrentJobs` | Concurrent processing jobs | `1` (single job for stability) |\n| `watchInterval` | Directory scan interval (seconds) | `30` |\n\n## 📁 Usage\n\n### Automated Processing\n\n1. **Copy files** to the input directory:\n   ```\n   /volume1/homes/[your_username]/insta360/input/\n   ├── vacation_001.insv\n   ├── vacation_002.insp\n   └── party_video.insv\n   ```\n\n2. **Wait for processing** - the system scans every 30 seconds\n\n3. **Check output** directory for converted files:\n   ```\n   /volume1/homes/[your_username]/insta360/output/\n   ├── vacation_001.mp4\n   ├── vacation_002.jpg\n   └── party_video.mp4\n   ```\n\n### Manual Single File Processing\n\nFor one-off conversions:\n\n```bash\n# Convert a single video file\ndocker run --rm \\\n  -v /volume1/homes/[username]/insta360/input:/data/input:ro \\\n  -v /volume1/homes/[username]/insta360/output:/data/output \\\n  insta360-auto-converter \\\n  /data/input/your_file.insv /data/output\n\n# Convert a single photo file\ndocker run --rm \\\n  -v /volume1/homes/[username]/insta360/input:/data/input:ro \\\n  -v /volume1/homes/[username]/insta360/output:/data/output \\\n  insta360-auto-converter \\\n  /data/input/your_photo.insp /data/output\n```\n\n## 🔧 DSM Integration\n\n### Using Docker GUI\n\n1. Open **Docker** package in DSM\n2. Go to **Registry** → Search \"insta360-auto-converter\"\n3. **Download** the image\n4. Go to **Container** → **Create**\n5. Configure volumes:\n   - `/volume1/homes/[username]/insta360/input` → `/data/input`\n   - `/volume1/homes/[username]/insta360/output` → `/data/output`\n   - `/volume1/homes/[username]/insta360/processed` → `/data/processed`\n   - `/volume1/homes/[username]/insta360/config` → `/data/config`\n\n### Task Scheduler Integration\n\nCreate a scheduled task to auto-restart the container:\n\n1. Open **Control Panel** → **Task Scheduler**\n2. Create **Triggered Task** → **User-defined script**\n3. **Trigger**: Boot-up\n4. **Task Settings**:\n   ```bash\n   #!/bin/bash\n   cd /volume1/homes/[username]/insta360-auto-converter\n   docker-compose up -d\n   ```\n\n## 📊 Monitoring\n\n### Check Status\n\n```bash\n# View running containers\ndocker ps\n\n# Check logs\ndocker logs insta360-batch-processor\n\n# Monitor resource usage\ndocker stats insta360-batch-processor\n```\n\n### Log Files\n\nLogs are automatically rotated and stored in Docker's logging system:\n- **Max size**: 10MB per file\n- **Max files**: 3 files retained\n- **Location**: `/var/lib/docker/containers/[container-id]/`\n\n## 🚨 Troubleshooting\n\n### Common Issues\n\n#### \"SDK directory not found\"\n**Solution**: Ensure the SDK is properly copied to the `sdk/` directory before building\n\n#### \"OpenCV error: !_src.empty()\"\n**Solution**: This is a known issue with headless environments. The new setup uses Xvfb to resolve this.\n\n#### \"Permission denied\"\n**Solution**: Check file permissions:\n```bash\nsudo chown -R [username]:users /volume1/homes/[username]/insta360/\nsudo chmod -R 755 /volume1/homes/[username]/insta360/\n```\n\n#### \"Container keeps restarting\"\n**Solutions**:\n1. Check available memory (need 2GB+)\n2. Verify SDK files are complete\n3. Check Docker logs for specific errors\n\n### Performance Optimization\n\n#### For Better Performance\n- **Increase memory**: Edit docker-compose.yml memory limits\n- **Use SSD storage**: Store input/output on SSD volumes if available\n- **Multiple containers**: Run multiple instances for different directories\n\n#### For Lower Resource Usage\n- **Reduce output resolution**: Set smaller width/height in config\n- **Lower bitrate**: Reduce bitrate in config\n- **Increase watch interval**: Scan less frequently\n\n## 🔄 Updates\n\n### Updating the Container\n\n```bash\n# Stop current container\ndocker-compose down\n\n# Pull latest code\ngit pull\n\n# Rebuild image\nsudo docker build -t insta360-auto-converter .\n\n# Restart\ndocker-compose up -d\n```\n\n## 📱 Mobile Access\n\nAccess converted files from anywhere:\n\n1. **DS File** app - browse output directory\n2. **Synology Drive** - sync output folder to devices\n3. **DS Video** - automatically index converted videos\n4. **Web browser** - access via QuickConnect or VPN\n\n## 🔐 Security Considerations\n\n- **SDK files contain proprietary code** - keep them secure\n- **Run container as non-root** when possible\n- **Limit network access** - container doesn't need internet\n- **Regular backups** of configuration and processed file tracking\n\n## 📈 Advanced Usage\n\n### Multiple Processing Queues\n\nRun separate containers for different priorities:\n\n```bash\n# High priority queue\ndocker run -d --name insta360-priority \\\n  -v /volume1/priority:/data/input:ro \\\n  -v /volume1/output:/data/output \\\n  insta360-auto-converter\n\n# Regular queue  \ndocker run -d --name insta360-regular \\\n  -v /volume1/regular:/data/input:ro \\\n  -v /volume1/output:/data/output \\\n  insta360-auto-converter\n```\n\n### Integration with Other Services\n\n- **Plex/Jellyfin**: Point media server to output directory\n- **Surveillance Station**: Process security camera footage\n- **Cloud Sync**: Auto-upload processed files to cloud storage\n- **Notification**: Use DSM notifications to alert when processing completes\n\n## 📞 Support\n\nIf you encounter issues:\n\n1. **Check logs** first: `docker logs insta360-batch-processor`\n2. **Verify SDK** installation and completeness\n3. **Test single file** conversion before batch processing\n4. **Resource monitoring** - ensure sufficient RAM/CPU\n5. **GitHub Issues** for bugs and feature requests\n\n---\n\n**Happy converting! 📹→🎬**
+# 📦 Insta360 Auto Converter for Synology NAS
+
+Complete setup guide for automated Insta360 file conversion on your Synology NAS.
+
+---
+
+## 📋 Prerequisites
+
+### Synology NAS Requirements
+- **DSM 7.0+** (for better Docker support)
+- **Docker Package** installed from Package Center
+- **Docker Compose** (optional but recommended)
+- **Minimum 2GB RAM** (4GB+ recommended for video processing)
+- **ARM64 or x64 CPU** (Intel/AMD models recommended for better performance)
+
+### Recommended Synology Models
+- **DS918+, DS920+, DS1520+** (Intel Celeron - good performance)
+- **DS220+, DS420+** (Intel Celeron - basic performance)
+- **DS1621+, DS1821+** (AMD Ryzen - excellent performance)
+
+---
+
+## 🚀 Quick Setup
+
+### 1. Prepare Directory Structure
+
+Create the following folder structure on your NAS:
+
+```
+/volume1/homes/[your_username]/insta360/
+├── input/          # Put your .insv/.insp files here
+├── output/         # Converted files will appear here
+├── processed/      # Tracking files (don't touch)
+├── config/         # Configuration files
+└── sdk/            # Insta360 SDK (you provide this)
+```
+
+---
+
+### 2. Install Insta360 SDK
+
+1. Download the **Insta360 Media SDK** from the official Insta360 developer portal  
+2. Extract the SDK and copy its contents to:
+
+```
+/volume1/homes/[your_username]/insta360/sdk/
+├── include/
+├── lib/
+└── bin/
+```
+
+---
+
+### 3. Clone and Build
+
+SSH into your Synology NAS and run:
+
+```bash
+cd /volume1/homes/[your_username]/
+
+# Clone the repository
+git clone https://github.com/your-repo/insta360-auto-converter.git
+cd insta360-auto-converter
+
+# Copy your SDK into the project
+cp -r ../insta360/sdk/ ./
+
+# Build the Docker image
+sudo docker build -t insta360-auto-converter .
+```
+
+---
+
+### 4. Configure Docker Compose
+
+Edit the `docker-compose.yml` file to match your paths:
+
+```yaml
+volumes:
+  # Update these paths with your actual username
+  - /volume1/homes/YOUR_USERNAME/insta360/input:/data/input:ro
+  - /volume1/homes/YOUR_USERNAME/insta360/output:/data/output
+  - /volume1/homes/YOUR_USERNAME/insta360/processed:/data/processed
+  - /volume1/homes/YOUR_USERNAME/insta360/config:/data/config
+```
+
+---
+
+### 5. Start the Service
+
+```bash
+docker-compose up -d
+docker-compose logs -f
+```
+
+---
+
+## ⚙️ Configuration
+
+The system will automatically create a configuration file at `/data/config/config.json`:
+
+```json
+{
+  "enableGPU": false,
+  "outputWidth": 5760,
+  "outputHeight": 2880,
+  "bitrate": 50000000,
+  "maxConcurrentJobs": 1,
+  "watchInterval": 30,
+  "comment": "Insta360 Batch Processor Configuration"
+}
+```
+
+### Configuration Options
+
+| Option              | Description                  | Recommended Value              |
+|---------------------|------------------------------|--------------------------------|
+| `enableGPU`         | Use GPU acceleration         | `false` (for compatibility)    |
+| `outputWidth`       | Output video/image width     | `5760` (4K) or `3840` (standard) |
+| `outputHeight`      | Output video/image height    | `2880` (4K) or `1920` (standard) |
+| `bitrate`           | Video bitrate in bps         | `50000000` (50 Mbps)           |
+| `maxConcurrentJobs` | Concurrent processing jobs   | `1`                            |
+| `watchInterval`     | Directory scan interval (s)  | `30`                           |
+
+---
+
+## 📁 Usage
+
+### Automated Processing
+
+1. Copy files into the input directory:
+
+```
+/volume1/homes/[your_username]/insta360/input/
+├── vacation_001.insv
+├── vacation_002.insp
+└── party_video.insv
+```
+
+2. Wait for processing (default: scans every 30s).  
+3. Converted files will appear in:
+
+```
+/volume1/homes/[your_username]/insta360/output/
+├── vacation_001.mp4
+├── vacation_002.jpg
+└── party_video.mp4
+```
+
+---
+
+### Manual Single File Processing
+
+```bash
+# Convert a single video file
+docker run --rm \
+  -v /volume1/homes/[username]/insta360/input:/data/input:ro \
+  -v /volume1/homes/[username]/insta360/output:/data/output \
+  insta360-auto-converter \
+  /data/input/your_file.insv /data/output
+
+# Convert a single photo file
+docker run --rm \
+  -v /volume1/homes/[username]/insta360/input:/data/input:ro \
+  -v /volume1/homes/[username]/insta360/output:/data/output \
+  insta360-auto-converter \
+  /data/input/your_photo.insp /data/output
+```
+
+---
+
+## 🔧 DSM Integration
+
+### Using Docker GUI
+1. Open **Docker** in DSM  
+2. Go to **Registry** → search `insta360-auto-converter`  
+3. Download the image  
+4. Go to **Container** → **Create**  
+5. Configure volumes:  
+   - `/volume1/homes/[username]/insta360/input` → `/data/input`  
+   - `/volume1/homes/[username]/insta360/output` → `/data/output`  
+   - `/volume1/homes/[username]/insta360/processed` → `/data/processed`  
+   - `/volume1/homes/[username]/insta360/config` → `/data/config`  
+
+---
+
+### Task Scheduler Integration
+
+Create a scheduled task to auto-restart:
+
+```bash
+#!/bin/bash
+cd /volume1/homes/[username]/insta360-auto-converter
+docker-compose up -d
+```
+
+---
+
+## 📊 Monitoring
+
+```bash
+docker ps                  # view running containers
+docker logs insta360-batch-processor   # check logs
+docker stats insta360-batch-processor  # monitor resources
+```
+
+Logs are rotated automatically:
+- Max size: 10MB per file  
+- Max files: 3  
+- Location: `/var/lib/docker/containers/[container-id]/`  
+
+---
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+- **"SDK directory not found"** → Ensure SDK is copied into `sdk/`  
+- **"OpenCV error: !_src.empty()"** → Xvfb is required, already included  
+- **"Permission denied"** → Fix with:
+  ```bash
+  sudo chown -R [username]:users /volume1/homes/[username]/insta360/
+  sudo chmod -R 755 /volume1/homes/[username]/insta360/
+  ```
+- **"Container keeps restarting"**  
+  1. Check available memory (≥2GB)  
+  2. Verify SDK completeness  
+  3. Inspect logs  
+
+---
+
+## ⚡ Performance Tips
+
+- Increase memory in `docker-compose.yml`  
+- Store input/output on SSDs  
+- Run multiple containers for parallel queues  
+
+To reduce load:  
+- Lower resolution (`outputWidth/Height`)  
+- Reduce bitrate  
+- Increase `watchInterval`  
+
+---
+
+## 🔄 Updates
+
+```bash
+docker-compose down
+git pull
+sudo docker build -t insta360-auto-converter .
+docker-compose up -d
+```
+
+---
+
+## 📱 Mobile Access
+
+- **DS File** app → browse output  
+- **Synology Drive** → sync folders  
+- **DS Video** → index videos  
+- **QuickConnect/VPN** → remote access  
+
+---
+
+## 🔐 Security
+
+- Keep SDK files private  
+- Run containers as non-root  
+- Limit network access (container doesn’t need internet)  
+- Backup config + processed folder  
+
+---
+
+## 📈 Advanced Usage
+
+### Multiple Queues
+
+```bash
+# High priority
+docker run -d --name insta360-priority \
+  -v /volume1/priority:/data/input:ro \
+  -v /volume1/output:/data/output \
+  insta360-auto-converter
+
+# Regular queue
+docker run -d --name insta360-regular \
+  -v /volume1/regular:/data/input:ro \
+  -v /volume1/output:/data/output \
+  insta360-auto-converter
+```
+
+### Integration
+- **Plex/Jellyfin** → point to `output/`  
+- **Surveillance Station** → process camera footage  
+- **Cloud Sync** → upload automatically  
+- **DSM notifications** → alerts when done  
+
+---
+
+## 📞 Support
+
+1. Check logs: `docker logs insta360-batch-processor`  
+2. Verify SDK installation  
+3. Test single file before batch  
+4. Monitor RAM/CPU usage  
+5. Report issues on GitHub  
+
+---
+
+✨ **Happy converting!** 📹 → 🎬
