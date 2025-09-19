@@ -2,9 +2,28 @@
 
 A Docker-based application for automatically converting Insta360 camera files (.insv video and .insp photo files) into standard formats.
 
+🏠 **Perfect for Synology NAS!** - See [SYNOLOGY_SETUP.md](SYNOLOGY_SETUP.md) for complete NAS deployment guide.
+
+## Features
+
+✅ **Automated Batch Processing** - Monitor directories and auto-convert new files  
+✅ **Synology NAS Optimized** - Designed specifically for NAS environments  
+✅ **Single File Conversion** - Convert individual files on demand  
+✅ **Headless Operation** - No GUI required, perfect for servers  
+✅ **Configuration Management** - JSON-based configuration with sensible defaults  
+✅ **Progress Tracking** - Avoid reprocessing files with smart tracking  
+
+## Quick Start Options
+
+### 🏠 Synology NAS (Recommended)
+
+See **[SYNOLOGY_SETUP.md](SYNOLOGY_SETUP.md)** for complete setup guide.
+
+### 💻 Standard Docker
+
 ## Prerequisites
 
-- Docker with NVIDIA GPU support (for GPU acceleration)
+- Docker (GPU support optional)
 - Insta360 Media SDK (see installation instructions below)
 
 ## SDK Installation

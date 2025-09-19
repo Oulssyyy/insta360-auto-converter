@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  insta360-converter:
+    build: .
+    image: insta360-auto-converter:latest
+    container_name: insta360-batch-processor
+    restart: unless-stopped
+    
+    # Environment variables for configuration
+    environment:
+      - DISPLAY=:99
+      - LIBGL_ALWAYS_INDIRECT=1
+      - MESA_GL_VERSION_OVERRIDE=4.5
+      
+    # Volume mounts for Synology NAS
+    volumes:
+      # Input directory - where you put your .insv/.insp files
+      - /volume1/homes/your_username/insta360/input:/data/input:ro
+      # Output directory - where converted files will be saved
+      - /volume1/homes/your_username/insta360/output:/data/output
+      # Processed tracking directory - to avoid reprocessing files
+      - /volume1/homes/your_username/insta360/processed:/data/processed
+      # Configuration file
+      - /volume1/homes/your_username/insta360/config:/data/config
+      
+    # Command to run batch processor instead of single file converter
+    command: ["/app/build/insta360_batch_processor", "/data/input", "/data/output", "/data/processed", "/data/config/config.json"]
+    
+    # Resource limits for NAS environment
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          
+    # Health check
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "insta360_batch_processor"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+      
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Alternative service for single file conversion (disabled by default)
+  insta360-single:
+    build: .
+    image: insta360-auto-converter:latest
+    container_name: insta360-single-converter
+    profiles: ["single"]  # Use docker-compose --profile single up to enable
+    
+    volumes:
+      - /volume1/homes/your_username/insta360/input:/data/input:ro
+      - /volume1/homes/your_username/insta360/output:/data/output
+      
+    # For single file conversion, you would override the command:
+    # command: ["/app/build/insta360_converter", "/data/input/your_file.insv", "/data/output"]

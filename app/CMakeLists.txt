@@ -24,28 +24,42 @@ include_directories(${SDK_INCLUDE_DIR})
 # Link SDK libraries
 link_directories(${SDK_LIB_DIR})
 
-add_executable(insta360_converter main.cpp)
-
 # Find required system libraries
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PNG REQUIRED libpng16)
+find_package(jsoncpp REQUIRED)
 
-# Link the MediaSDK library and its dependencies
-target_link_libraries(insta360_converter 
+# Common libraries and settings
+set(COMMON_LIBRARIES
     MediaSDK
     ${PNG_LIBRARIES}
     pthread
     dl
+    stdc++fs
 )
 
-# Add filesystem library for C++17
-target_link_libraries(insta360_converter stdc++fs)
+set(COMMON_COMPILE_OPTIONS ${PNG_CFLAGS_OTHER})
+set(COMMON_INCLUDE_DIRS ${PNG_INCLUDE_DIRS})
+set(COMMON_LIBRARY_DIRS ${PNG_LIBRARY_DIRS})
 
-# Add library search paths
-target_link_directories(insta360_converter PRIVATE ${PNG_LIBRARY_DIRS})
+# Single file converter (original functionality)
+add_executable(insta360_converter main.cpp)
+target_link_libraries(insta360_converter ${COMMON_LIBRARIES})
+target_include_directories(insta360_converter PRIVATE ${COMMON_INCLUDE_DIRS})
+target_link_directories(insta360_converter PRIVATE ${COMMON_LIBRARY_DIRS})
+target_compile_options(insta360_converter PRIVATE ${COMMON_COMPILE_OPTIONS})
 
-# Add include directories
-target_include_directories(insta360_converter PRIVATE ${PNG_INCLUDE_DIRS})
+# Batch processor for Synology NAS
+add_executable(insta360_batch_processor batch_processor.cpp)
+target_link_libraries(insta360_batch_processor 
+    ${COMMON_LIBRARIES}
+    jsoncpp_lib
+)
+target_include_directories(insta360_batch_processor PRIVATE ${COMMON_INCLUDE_DIRS})
+target_link_directories(insta360_batch_processor PRIVATE ${COMMON_LIBRARY_DIRS})
+target_compile_options(insta360_batch_processor PRIVATE ${COMMON_COMPILE_OPTIONS})
 
-# Add compile flags
-target_compile_options(insta360_converter PRIVATE ${PNG_CFLAGS_OTHER})
+# Install both executables
+install(TARGETS insta360_converter insta360_batch_processor
+    RUNTIME DESTINATION bin
+)

@@ -68,9 +68,19 @@ int main(int argc, char* argv[]) {
         std::string output_path = (fs::path(output_dir) / (fs::path(input).stem().string() + ".jpg")).string();
         imageStitcher->SetOutputPath(output_path);
 
-        imageStitcher->EnableStitchFusion(true);
+        // Configure for CPU-only processing in containerized environment
+        imageStitcher->EnableCuda(false);
+        imageStitcher->SetImageProcessingAccelType(ins::ImageProcessingAccel::kCPU);
+        
+        // Use template stitching for better compatibility
+        imageStitcher->SetStitchType(ins::STITCH_TYPE::TEMPLATE);
+        
+        // Disable image fusion to avoid OpenCV crashes in containerized environment
+        imageStitcher->EnableStitchFusion(false);
 
+        std::cout << "Starting image stitching..." << std::endl;
         bool success = imageStitcher->Stitch();
+        std::cout << "Stitching completed with result: " << (success ? "SUCCESS" : "FAILED") << std::endl;
         if (success) {
             std::cout << "Export finished: " << output_path << std::endl;
         } else {
