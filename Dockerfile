@@ -1,5 +1,10 @@
 FROM ubuntu:22.04
 
+# Set timezone and prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # Install dependencies optimized for Synology NAS and headless environment
 RUN apt-get update && apt-get install -y \
     build-essential cmake git pkg-config \
