@@ -73,6 +73,10 @@ int main(int argc, char* argv[]) {
         imageStitcher->EnableCuda(false);
         imageStitcher->SetImageProcessingAccelType(ins::ImageProcessingAccel::kCPU);
         
+        // Set maximum output resolution (full resolution of Insta360 X4)
+        // Native resolution is 11904x5952, but we'll use a high quality setting
+        imageStitcher->SetOutputSize(11904, 5952);  // Maximum native resolution
+        
         // Use template stitching for better compatibility
         imageStitcher->SetStitchType(ins::STITCH_TYPE::TEMPLATE);
         
@@ -86,9 +90,9 @@ int main(int argc, char* argv[]) {
             std::cout << "Export finished: " << output_path << std::endl;
             
             // Add 360° EXIF metadata to make the image recognizable as a panorama
-            // Standard equirectangular panorama is typically 2:1 ratio (e.g., 3840x1920)
-            const int pano_width = 3840;  // Default width for equirectangular
-            const int pano_height = 1920; // Default height for equirectangular (2:1 ratio)
+            // Use the actual output resolution we set (11904x5952 for maximum quality)
+            const int pano_width = 11904;   // Maximum native resolution width
+            const int pano_height = 5952;   // Maximum native resolution height (2:1 ratio)
             
             std::cout << "Adding 360° EXIF metadata..." << std::endl;
             if (add360ExifMetadata(output_path, input, pano_width, pano_height)) {

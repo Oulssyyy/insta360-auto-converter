@@ -35,8 +35,8 @@ private:
     
     // Configuration
     bool enableGPU = false;
-    int outputWidth = 5760;
-    int outputHeight = 2880;
+    int outputWidth = 11904;  // Maximum native resolution for Insta360 X4
+    int outputHeight = 5952;  // Maximum native resolution (2:1 ratio)
     int bitrate = 50000000; // 50 Mbps
     int maxConcurrentJobs = 1;
     int watchInterval = 30; // seconds
@@ -88,8 +88,8 @@ public:
     void createDefaultConfig() {
         Json::Value config;
         config["enableGPU"] = false;
-        config["outputWidth"] = 5760;
-        config["outputHeight"] = 2880;
+        config["outputWidth"] = 11904;  // Maximum native resolution for Insta360 X4
+        config["outputHeight"] = 5952;  // Maximum native resolution (2:1 ratio)
         config["bitrate"] = 50000000;
         config["maxConcurrentJobs"] = 1;
         config["watchInterval"] = 30;
