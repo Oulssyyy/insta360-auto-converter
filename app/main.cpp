@@ -6,6 +6,7 @@
 // Inclure les headers du SDK
 #include "ins_stitcher.h"   // Contains VideoStitcher and ImageStitcher classes
 #include "ins_common.h"     // Contains common types and enums
+#include "exif_metadata.h"  // For adding 360° EXIF metadata
 
 namespace fs = std::filesystem;
 
@@ -83,6 +84,18 @@ int main(int argc, char* argv[]) {
         std::cout << "Stitching completed with result: " << (success ? "SUCCESS" : "FAILED") << std::endl;
         if (success) {
             std::cout << "Export finished: " << output_path << std::endl;
+            
+            // Add 360° EXIF metadata to make the image recognizable as a panorama
+            // Standard equirectangular panorama is typically 2:1 ratio (e.g., 3840x1920)
+            const int pano_width = 3840;  // Default width for equirectangular
+            const int pano_height = 1920; // Default height for equirectangular (2:1 ratio)
+            
+            std::cout << "Adding 360° EXIF metadata..." << std::endl;
+            if (add360ExifMetadata(output_path, input, pano_width, pano_height)) {
+                std::cout << "Successfully added 360° EXIF metadata to " << output_path << std::endl;
+            } else {
+                std::cerr << "Warning: Failed to add 360° EXIF metadata to " << output_path << std::endl;
+            }
         } else {
             std::cerr << "Error during image stitching" << std::endl;
             return 1;

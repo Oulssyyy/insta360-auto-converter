@@ -1,0 +1,21 @@
+{
+  "processing": {
+    "enableGPU": false,
+    "outputWidth": 5760,
+    "outputHeight": 2880,
+    "bitrate": 50000000,
+    "maxConcurrentJobs": 1,
+    "watchInterval": 30
+  },
+  "formats": {
+    "supportedInput": [".insv", ".insp", ".jpg"],
+    "videoOutput": ".mp4",
+    "imageOutput": ".jpg"
+  },
+  "features": {
+    "enableFlowState": true,
+    "enableDirectionLock": true,
+    "enableH265": true,
+    "add360Metadata": true
+  }
+}

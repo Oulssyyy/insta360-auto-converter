@@ -13,6 +13,7 @@
 // Include SDK headers
 #include "ins_stitcher.h"
 #include "ins_common.h"
+#include "exif_metadata.h"  // For adding 360° EXIF metadata
 
 namespace fs = std::filesystem;
 
@@ -27,7 +28,6 @@ class Insta360BatchProcessor {
 private:
     std::string inputDir;
     std::string outputDir;
-    std::string processedDir;
     std::string configFile;
     std::queue<ConversionJob> jobQueue;
     std::mutex queueMutex;
@@ -42,12 +42,11 @@ private:
     int watchInterval = 30; // seconds
     
 public:
-    Insta360BatchProcessor(const std::string& input, const std::string& output, const std::string& processed, const std::string& config) 
-        : inputDir(input), outputDir(output), processedDir(processed), configFile(config), running(false) {
+    Insta360BatchProcessor(const std::string& input, const std::string& output, const std::string& config) 
+        : inputDir(input), outputDir(output), configFile(config), running(false) {
         
         // Ensure directories exist
         fs::create_directories(outputDir);
-        fs::create_directories(processedDir);
         
         // Load configuration
         loadConfiguration();
@@ -59,7 +58,6 @@ public:
         std::cout << "Insta360 Batch Processor initialized" << std::endl;
         std::cout << "Input directory: " << inputDir << std::endl;
         std::cout << "Output directory: " << outputDir << std::endl;
-        std::cout << "Processed directory: " << processedDir << std::endl;
     }
     
     void loadConfiguration() {
@@ -104,6 +102,38 @@ public:
         std::cout << "Default configuration created: " << configFile << std::endl;
     }
     
+    // Check if a file has already been converted by looking in the output directory
+    bool isAlreadyConverted(const fs::path& inputPath) {
+        try {
+            std::string inputFilename = inputPath.stem().string();
+            std::string inputExt = inputPath.extension().string();
+            
+            // Determine expected output extension
+            std::string outputExt;
+            if (inputExt == ".insv") {
+                outputExt = ".mp4";
+            } else if (inputExt == ".insp" || inputExt == ".jpg") {
+                outputExt = ".jpg";
+            } else {
+                return false; // Unsupported format
+            }
+            
+            // Get relative path from input directory to maintain folder structure
+            fs::path relativePath = fs::relative(inputPath, inputDir);
+            fs::path outputPath = fs::path(outputDir) / relativePath.parent_path() / (inputFilename + outputExt);
+            
+            bool exists = fs::exists(outputPath);
+            if (exists) {
+                std::cout << "File already converted: " << inputPath.filename() << " -> " << outputPath.filename() << std::endl;
+            }
+            return exists;
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Error checking conversion status for " << inputPath << ": " << e.what() << std::endl;
+            return false; // If we can't check, assume not converted to be safe
+        }
+    }
+    
     void scanForFiles() {
         if (!fs::exists(inputDir)) {
             std::cerr << "Input directory does not exist: " << inputDir << std::endl;
@@ -118,12 +148,9 @@ public:
                 std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
                 
                 if (extension == ".insv" || extension == ".insp") {
-                    // Check if already processed
-                    std::string relativePath = fs::relative(entry.path(), inputDir).string();
-                    std::string processedPath = (fs::path(processedDir) / relativePath).string();
-                    
-                    if (fs::exists(processedPath)) {
-                        continue; // Already processed
+                    // Check if already converted
+                    if (isAlreadyConverted(entry.path())) {
+                        continue; // Already converted, skip
                     }
                     
                     // Create conversion job
@@ -221,6 +248,15 @@ public:
             
             if (success && fs::exists(job.outputPath)) {
                 std::cout << "Image conversion completed: " << fs::path(job.outputPath).filename() << std::endl;
+                
+                // Add 360° EXIF metadata to make the image recognizable as a panorama
+                std::cout << "Adding 360° EXIF metadata..." << std::endl;
+                if (add360ExifMetadata(job.outputPath, job.inputPath, outputWidth, outputHeight)) {
+                    std::cout << "Successfully added 360° EXIF metadata to " << fs::path(job.outputPath).filename() << std::endl;
+                } else {
+                    std::cerr << "Warning: Failed to add 360° EXIF metadata to " << fs::path(job.outputPath).filename() << std::endl;
+                }
+                
                 return true;
             } else {
                 std::cerr << "Image conversion failed" << std::endl;
@@ -233,26 +269,7 @@ public:
         }
     }
     
-    void markAsProcessed(const ConversionJob& job) {
-        try {
-            // Create marker file in processed directory
-            std::string relativePath = fs::relative(job.inputPath, inputDir).string();
-            std::string processedPath = (fs::path(processedDir) / relativePath).string();
-            
-            // Create directory structure
-            fs::create_directories(fs::path(processedPath).parent_path());
-            
-            // Create marker file with metadata
-            std::ofstream markerFile(processedPath);
-            markerFile << "Processed: " << std::chrono::system_clock::now().time_since_epoch().count() << std::endl;
-            markerFile << "Input: " << job.inputPath << std::endl;
-            markerFile << "Output: " << job.outputPath << std::endl;
-            markerFile.close();
-            
-        } catch (const std::exception& e) {
-            std::cerr << "Error marking as processed: " << e.what() << std::endl;
-        }
-    }
+    // markAsProcessed function removed - we now detect processed files by checking output directory
     
     void processJobs() {
         while (running) {
@@ -278,7 +295,6 @@ public:
                 }
                 
                 if (success) {
-                    markAsProcessed(job);
                     std::cout << "Job completed successfully: " << fs::path(job.inputPath).filename() << std::endl;
                 } else {
                     std::cerr << "Job failed: " << fs::path(job.inputPath).filename() << std::endl;
@@ -323,22 +339,23 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-    if (argc < 4) {
-        std::cerr << "Usage: " << argv[0] << " <input_dir> <output_dir> <processed_dir> [config_file]" << std::endl;
-        std::cerr << "Example: " << argv[0] << " /data/input /data/output /data/processed /data/config.json" << std::endl;
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " <input_dir> <output_dir> [config_file]" << std::endl;
+        std::cerr << "Example: " << argv[0] << " /data/input /data/output /data/config.json" << std::endl;
+        std::cerr << "Note: Converted files detection is now done by checking the output directory" << std::endl;
         return 1;
     }
     
     std::string inputDir = argv[1];
     std::string outputDir = argv[2];
-    std::string processedDir = argv[3];
-    std::string configFile = argc > 4 ? argv[4] : "/data/config.json";
+    std::string configFile = argc > 3 ? argv[3] : "/data/config.json";
     
     std::cout << "Insta360 Batch Processor for Synology NAS" << std::endl;
     std::cout << "==========================================" << std::endl;
+    std::cout << "Detection method: Output directory comparison (no processed folder duplication)" << std::endl;
     
     try {
-        Insta360BatchProcessor processor(inputDir, outputDir, processedDir, configFile);
+        Insta360BatchProcessor processor(inputDir, outputDir, configFile);
         
         // Handle shutdown gracefully
         processor.start();

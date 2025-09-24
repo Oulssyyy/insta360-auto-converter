@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  insta360-converter:
+    build: .
+    image: insta360-auto-converter:latest
+    container_name: insta360-batch-processor-wsl
+    restart: unless-stopped
+    
+    # Environment variables for configuration
+    environment:
+      - DISPLAY=:99
+      - LIBGL_ALWAYS_INDIRECT=1
+      - MESA_GL_VERSION_OVERRIDE=4.5
+      
+    # Volume mounts for WSL paths
+    volumes:
+      # Input directory - where you put your .insv/.insp files
+      - /mnt/c/Users/stf039/Pictures/insta360:/data/input:ro
+      # Output directory - where converted files will be saved
+      - /mnt/c/Users/stf039/Pictures/output:/data/output
+      # Configuration directory
+      - /mnt/c/Users/stf039/Pictures/config:/data/config
+      
+    # Override the default entrypoint and run batch processor directly
+    entrypoint: ["/app/build/insta360_batch_processor"]
+    command: ["/data/input", "/data/output", "/data/config/config.json"]
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          
+    # Health check
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "insta360_batch_processor"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+      
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Service pour conversion unique (optionnel)
+  insta360-single:
+    build: .
+    image: insta360-auto-converter:latest
+    container_name: insta360-single-converter
+    profiles: ["single"]  # Uniquement lancé avec --profile single
+    
+    environment:
+      - DISPLAY=:99
+      - LIBGL_ALWAYS_INDIRECT=1
+      - MESA_GL_VERSION_OVERRIDE=4.5
+      
+    volumes:
+      - /mnt/c/Users/stf039/Pictures/insta360:/data/input:ro
+      - /mnt/c/Users/stf039/Pictures/output:/data/output
+      
+    # Par défaut convertit le premier fichier trouvé
+    entrypoint: ["/app/start.sh"]
+    command: ["/data/input", "/data/output"]

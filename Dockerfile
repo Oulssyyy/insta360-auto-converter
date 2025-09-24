@@ -23,6 +23,8 @@ RUN apt-get update && apt-get install -y \
     libtbb-dev libssl-dev zlib1g-dev \
     # JSON library for configuration
     libjsoncpp-dev \
+    # EXIF library for 360 metadata
+    libexiv2-dev \
     # Cleanup
     && rm -rf /var/lib/apt/lists/*
 
