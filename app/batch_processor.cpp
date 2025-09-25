@@ -245,11 +245,21 @@ public:
             imageStitcher->SetInputPath(inputs);
             imageStitcher->SetOutputPath(job.outputPath);
             
-            // Configure for NAS environment
+            // Configure for NAS environment with optimal stitching quality
             imageStitcher->EnableCuda(enableGPU);
             imageStitcher->SetImageProcessingAccelType(ins::ImageProcessingAccel::kCPU);
-            imageStitcher->SetStitchType(ins::STITCH_TYPE::TEMPLATE);
-            imageStitcher->EnableStitchFusion(false); // Disable to avoid OpenCV issues
+            
+            // ✨ KEY OPTIMIZATION FOR PERFECT JUNCTIONS ✨
+            // Use OPTFLOW instead of TEMPLATE for superior seam blending
+            // This matches the algorithm used by official Insta360 Studio
+            imageStitcher->SetStitchType(ins::STITCH_TYPE::OPTFLOW);
+            
+            // ✨ CRITICAL: Enable advanced stitching fusion ✨
+            // This enables sophisticated blending algorithms at image boundaries
+            // Essential for eliminating the "blur" at junction points
+            imageStitcher->EnableStitchFusion(true);
+            
+            // Set maximum output resolution
             imageStitcher->SetOutputSize(outputWidth, outputHeight);
             
             bool success = imageStitcher->Stitch();

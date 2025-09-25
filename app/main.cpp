@@ -74,14 +74,17 @@ int main(int argc, char* argv[]) {
         imageStitcher->SetImageProcessingAccelType(ins::ImageProcessingAccel::kCPU);
         
         // Set maximum output resolution (full resolution of Insta360 X4)
-        // Native resolution is 11904x5952, but we'll use a high quality setting
         imageStitcher->SetOutputSize(11904, 5952);  // Maximum native resolution
         
-        // Use template stitching for better compatibility
-        imageStitcher->SetStitchType(ins::STITCH_TYPE::TEMPLATE);
+        // ✨ KEY OPTIMIZATION FOR PERFECT JUNCTIONS ✨
+        // Use OPTFLOW instead of TEMPLATE for superior seam blending
+        // This is the same algorithm used by the official Insta360 Studio
+        imageStitcher->SetStitchType(ins::STITCH_TYPE::OPTFLOW);
         
-        // Disable image fusion to avoid OpenCV crashes in containerized environment
-        imageStitcher->EnableStitchFusion(false);
+        // ✨ CRITICAL: Enable advanced stitching fusion ✨
+        // This enables sophisticated blending at image boundaries
+        // Disabled previously to avoid crashes, but essential for quality
+        imageStitcher->EnableStitchFusion(true);
 
         std::cout << "Starting image stitching..." << std::endl;
         bool success = imageStitcher->Stitch();
