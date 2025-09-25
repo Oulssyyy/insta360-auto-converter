@@ -74,6 +74,50 @@ EOF
 
 RUN chmod +x /app/start.sh
 
+# Create batch processor scripts for different modes
+COPY <<EOF /app/batch_single.sh
+#!/bin/bash
+# Single run mode - process all files once and exit
+# Start Xvfb for headless graphics
+Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX +render -noreset &
+XVFB_PID=\$!
+
+# Wait for Xvfb to start
+sleep 2
+
+echo "Starting Insta360 Batch Processor in SINGLE RUN mode"
+echo "This will process all files once and exit"
+
+# Run the batch processor in single mode
+/app/build/insta360_batch_processor "\$@"
+
+# Cleanup
+kill \$XVFB_PID 2>/dev/null || true
+EOF
+
+COPY <<EOF /app/batch_watch.sh
+#!/bin/bash
+# Watch mode - continuously monitor for new files
+# Start Xvfb for headless graphics
+Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX +render -noreset &
+XVFB_PID=\$!
+
+# Wait for Xvfb to start
+sleep 2
+
+echo "Starting Insta360 Batch Processor in WATCH mode"
+echo "This will continuously monitor for new files"
+echo "Press Ctrl+C to stop"
+
+# Run the batch processor in watch mode
+/app/build/insta360_batch_processor "\$@" --watch
+
+# Cleanup
+kill \$XVFB_PID 2>/dev/null || true
+EOF
+
+RUN chmod +x /app/batch_single.sh /app/batch_watch.sh
+
 # Entry point optimized for Synology NAS
 ENTRYPOINT ["/app/start.sh"]
 CMD ["/data/input/sample.insv", "/data/output"]

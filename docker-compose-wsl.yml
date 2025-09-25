@@ -22,9 +22,9 @@ services:
       # Configuration directory
       - /mnt/c/Users/stf039/Pictures/config:/data/config
       
-    # Override the default entrypoint and run batch processor directly
-    entrypoint: ["/app/build/insta360_batch_processor"]
-    command: ["/data/input", "/data/output", "/data/config/config.json"]
+    # Override the default entrypoint and run batch processor in single mode
+    entrypoint: ["bash", "-c"]
+    command: ["Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX +render -noreset & sleep 2 && /app/build/insta360_batch_processor /data/input /data/output /data/config/config.json; kill $! 2>/dev/null || true"]
     
     # Resource limits
     deploy:

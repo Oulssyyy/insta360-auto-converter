@@ -1,0 +1,10 @@
+{
+	"bitrate" : 50000000,
+	"comment" : "Insta360 Batch Processor Configuration - Set watchMode=true for continuous monitoring",
+	"enableGPU" : false,
+	"maxConcurrentJobs" : 1,
+	"outputHeight" : 5952,
+	"outputWidth" : 11904,
+	"watchInterval" : 30,
+	"watchMode" : false
+}

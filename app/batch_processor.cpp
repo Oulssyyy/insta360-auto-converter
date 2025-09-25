@@ -40,6 +40,7 @@ private:
     int bitrate = 50000000; // 50 Mbps
     int maxConcurrentJobs = 1;
     int watchInterval = 30; // seconds
+    bool watchMode = false; // Watch mode: continuously monitor for new files
     
 public:
     Insta360BatchProcessor(const std::string& input, const std::string& output, const std::string& config) 
@@ -60,6 +61,11 @@ public:
         std::cout << "Output directory: " << outputDir << std::endl;
     }
     
+    void setWatchMode(bool enabled) {
+        watchMode = enabled;
+        std::cout << "Watch mode " << (enabled ? "ENABLED" : "DISABLED") << " via command line" << std::endl;
+    }
+    
     void loadConfiguration() {
         if (!fs::exists(configFile)) {
             createDefaultConfig();
@@ -77,6 +83,7 @@ public:
             if (config.isMember("bitrate")) bitrate = config["bitrate"].asInt();
             if (config.isMember("maxConcurrentJobs")) maxConcurrentJobs = config["maxConcurrentJobs"].asInt();
             if (config.isMember("watchInterval")) watchInterval = config["watchInterval"].asInt();
+            if (config.isMember("watchMode")) watchMode = config["watchMode"].asBool();
             
             std::cout << "Configuration loaded from: " << configFile << std::endl;
         } catch (const std::exception& e) {
@@ -93,7 +100,8 @@ public:
         config["bitrate"] = 50000000;
         config["maxConcurrentJobs"] = 1;
         config["watchInterval"] = 30;
-        config["comment"] = "Insta360 Batch Processor Configuration";
+        config["watchMode"] = false;  // Set to true for continuous monitoring
+        config["comment"] = "Insta360 Batch Processor Configuration - Set watchMode=true for continuous monitoring";
         
         std::ofstream file(configFile);
         file << config;
@@ -308,25 +316,57 @@ public:
     
     void start() {
         running = true;
-        std::cout << "Starting batch processor..." << std::endl;
+        
+        if (watchMode) {
+            std::cout << "Starting batch processor in WATCH MODE (continuous monitoring)..." << std::endl;
+            std::cout << "The processor will continuously monitor for new files and convert them automatically." << std::endl;
+            std::cout << "Press Ctrl+C to stop." << std::endl;
+        } else {
+            std::cout << "Starting batch processor in SINGLE RUN MODE..." << std::endl;
+            std::cout << "The processor will scan once, convert all found files, and exit." << std::endl;
+        }
         
         // Start worker thread
         std::thread worker(&Insta360BatchProcessor::processJobs, this);
         
-        // Main loop - scan for new files periodically
-        while (running) {
+        if (watchMode) {
+            // Watch mode: continuous monitoring
+            while (running) {
+                scanForFiles();
+                
+                // Display queue status
+                {
+                    std::lock_guard<std::mutex> lock(queueMutex);
+                    if (!jobQueue.empty()) {
+                        std::cout << "Jobs in queue: " << jobQueue.size() << std::endl;
+                    }
+                }
+                
+                // Wait before next scan
+                std::this_thread::sleep_for(std::chrono::seconds(watchInterval));
+            }
+        } else {
+            // Single run mode: scan once and wait for completion
             scanForFiles();
             
-            // Display queue status
+            // Display initial queue status
             {
                 std::lock_guard<std::mutex> lock(queueMutex);
-                if (!jobQueue.empty()) {
-                    std::cout << "Jobs in queue: " << jobQueue.size() << std::endl;
-                }
+                std::cout << "Jobs in queue: " << jobQueue.size() << std::endl;
             }
             
-            // Wait before next scan
-            std::this_thread::sleep_for(std::chrono::seconds(watchInterval));
+            // Wait for all jobs to complete
+            bool allJobsCompleted = false;
+            while (!allJobsCompleted && running) {
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                
+                std::lock_guard<std::mutex> lock(queueMutex);
+                allJobsCompleted = jobQueue.empty();
+            }
+            
+            // Stop the processor after completion
+            running = false;
+            std::cout << "All jobs completed. Exiting single run mode." << std::endl;
         }
         
         worker.join();
@@ -340,9 +380,14 @@ public:
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <input_dir> <output_dir> [config_file]" << std::endl;
-        std::cerr << "Example: " << argv[0] << " /data/input /data/output /data/config.json" << std::endl;
-        std::cerr << "Note: Converted files detection is now done by checking the output directory" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <input_dir> <output_dir> [config_file] [--watch]" << std::endl;
+        std::cerr << "Example (single run): " << argv[0] << " /data/input /data/output /data/config.json" << std::endl;
+        std::cerr << "Example (watch mode): " << argv[0] << " /data/input /data/output /data/config.json --watch" << std::endl;
+        std::cerr << "" << std::endl;
+        std::cerr << "Modes:" << std::endl;
+        std::cerr << "  Single run (default): Process all files once and exit" << std::endl;
+        std::cerr << "  Watch mode (--watch): Continuously monitor for new files" << std::endl;
+        std::cerr << "Note: Converted files detection is done by checking the output directory" << std::endl;
         return 1;
     }
     
@@ -350,12 +395,26 @@ int main(int argc, char* argv[]) {
     std::string outputDir = argv[2];
     std::string configFile = argc > 3 ? argv[3] : "/data/config.json";
     
+    // Check for --watch parameter
+    bool forceWatchMode = false;
+    for (int i = 3; i < argc; i++) {
+        if (std::string(argv[i]) == "--watch") {
+            forceWatchMode = true;
+            break;
+        }
+    }
+    
     std::cout << "Insta360 Batch Processor for Synology NAS" << std::endl;
     std::cout << "==========================================" << std::endl;
     std::cout << "Detection method: Output directory comparison (no processed folder duplication)" << std::endl;
     
     try {
         Insta360BatchProcessor processor(inputDir, outputDir, configFile);
+        
+        // Override watch mode if specified via command line
+        if (forceWatchMode) {
+            processor.setWatchMode(true);
+        }
         
         // Handle shutdown gracefully
         processor.start();
