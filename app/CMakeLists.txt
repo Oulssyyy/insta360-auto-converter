@@ -44,15 +44,15 @@ set(COMMON_COMPILE_OPTIONS ${PNG_CFLAGS_OTHER} ${EXIV2_CFLAGS_OTHER})
 set(COMMON_INCLUDE_DIRS ${PNG_INCLUDE_DIRS} ${EXIV2_INCLUDE_DIRS})
 set(COMMON_LIBRARY_DIRS ${PNG_LIBRARY_DIRS} ${EXIV2_LIBRARY_DIRS})
 
-# Single file converter (original functionality)
-add_executable(insta360_converter main.cpp exif_metadata.cpp)
+# Single file converter (with dynamic resolution detection)
+add_executable(insta360_converter main.cpp exif_metadata.cpp resolution_detector.cpp)
 target_link_libraries(insta360_converter ${COMMON_LIBRARIES})
 target_include_directories(insta360_converter PRIVATE ${COMMON_INCLUDE_DIRS})
 target_link_directories(insta360_converter PRIVATE ${COMMON_LIBRARY_DIRS})
 target_compile_options(insta360_converter PRIVATE ${COMMON_COMPILE_OPTIONS})
 
-# Batch processor for Synology NAS
-add_executable(insta360_batch_processor batch_processor.cpp exif_metadata.cpp)
+# Batch processor for Synology NAS (with dynamic resolution detection)
+add_executable(insta360_batch_processor batch_processor.cpp exif_metadata.cpp resolution_detector.cpp)
 target_link_libraries(insta360_batch_processor 
     ${COMMON_LIBRARIES}
     jsoncpp_lib

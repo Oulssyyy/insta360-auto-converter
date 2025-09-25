@@ -14,6 +14,7 @@
 #include "ins_stitcher.h"
 #include "ins_common.h"
 #include "exif_metadata.h"  // For adding 360° EXIF metadata
+#include "resolution_detector.h"  // For dynamic resolution detection
 
 namespace fs = std::filesystem;
 
@@ -239,6 +240,9 @@ public:
         std::cout << "Processing image: " << fs::path(job.inputPath).filename() << std::endl;
         
         try {
+            // 🔍 DYNAMIC RESOLUTION DETECTION per file
+            ResolutionInfo resolution = detectOptimalResolution(job.inputPath);
+            
             auto imageStitcher = std::make_shared<ins::ImageStitcher>();
             
             std::vector<std::string> inputs = { job.inputPath };
@@ -259,8 +263,8 @@ public:
             // Essential for eliminating the "blur" at junction points
             imageStitcher->EnableStitchFusion(true);
             
-            // Set maximum output resolution
-            imageStitcher->SetOutputSize(outputWidth, outputHeight);
+            // 📐 Set optimal resolution dynamically based on detected camera model
+            imageStitcher->SetOutputSize(resolution.width, resolution.height);
             
             bool success = imageStitcher->Stitch();
             
@@ -269,7 +273,7 @@ public:
                 
                 // Add 360° EXIF metadata to make the image recognizable as a panorama
                 std::cout << "Adding 360° EXIF metadata..." << std::endl;
-                if (add360ExifMetadata(job.outputPath, job.inputPath, outputWidth, outputHeight)) {
+                if (add360ExifMetadata(job.outputPath, job.inputPath, resolution.width, resolution.height)) {
                     std::cout << "Successfully added 360° EXIF metadata to " << fs::path(job.outputPath).filename() << std::endl;
                 } else {
                     std::cerr << "Warning: Failed to add 360° EXIF metadata to " << fs::path(job.outputPath).filename() << std::endl;

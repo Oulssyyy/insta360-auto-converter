@@ -18,29 +18,29 @@ SHOW_HELP=false
 # Fonction d'aide
 show_help() {
     cat << EOF
-🎯 Insta360 Auto Converter - Script Unifié Ubuntu/WSL
-=====================================================
+🎯 Insta360 Auto Converter - Unified Ubuntu/WSL Script
+======================================================
 
-✨ NOUVEAU: Optimisation des jonctions avec algorithme OPTFLOW
-   Élimine le flou aux extrémités pour une qualité identique à Insta360 Studio
+✨ NEW: Junction optimization with OPTFLOW algorithm
+   Eliminates blur at extremities for quality identical to Insta360 Studio
 
 USAGE: $0 [OPTIONS]
 
 OPTIONS:
-  (aucun arg)   Mode Single - Traite tous les fichiers une fois et s'arrête
-  -w, --watch   Mode Watch - Surveillance continue pour nouveaux fichiers
-  -h, --help    Affiche cette aide
+  (no args)     Single Mode - Process all files once and exit
+  -w, --watch   Watch Mode - Continuous monitoring for new files
+  -h, --help    Show this help
 
-EXEMPLES:
-  $0                # Traitement batch unique
-  $0 --watch        # Surveillance continue
-  $0 -w             # Surveillance continue (forme courte)
+EXAMPLES:
+  $0                # Single batch processing
+  $0 --watch        # Continuous monitoring
+  $0 -w             # Continuous monitoring (short form)
 
-QUALITÉ:
-  • Résolution native: 11904x5952 (70.9MP)
-  • Algorithme OPTFLOW pour jonctions parfaites
-  • Métadonnées 360° préservées pour Synology Photos
-  • EnableStitchFusion pour éliminer le flou aux bords
+QUALITY:
+  • Native resolution: 11904x5952 (70.9MP)
+  • OPTFLOW algorithm for perfect junctions
+  • 360° metadata preserved for Synology Photos
+  • EnableStitchFusion to eliminate edge blur
 EOF
 }
 
@@ -56,50 +56,50 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         *)
-            echo "❌ Argument inconnu: $1"
-            echo "Utilisez -h ou --help pour l'aide"
+            echo "❌ Unknown argument: $1"
+            echo "Use -h or --help for help"
             exit 1
             ;;
     esac
 done
 
-# Affichage du mode
-echo "🚀 Insta360 Auto Converter - $([ "$WATCH_MODE" = true ] && echo "MODE WATCH" || echo "MODE SINGLE")"
+# Display mode
+echo "🚀 Insta360 Auto Converter - $([ "$WATCH_MODE" = true ] && echo "WATCH MODE" || echo "SINGLE MODE")"
 echo "=================================================================="
 if [ "$WATCH_MODE" = true ]; then
-    echo "🔄 Surveillance continue activée - détection automatique des nouveaux fichiers"
+    echo "🔄 Continuous monitoring enabled - automatic detection of new files"
 else
-    echo "🎯 Traitement batch unique - traite tous les fichiers et s'arrête"
+    echo "🎯 Single batch processing - processes all files and exits"
 fi
 echo ""
 
-# Création des répertoires
-echo "📁 Création des répertoires..."
+# Create directories
+echo "📁 Creating directories..."
 mkdir -p "$OUTPUT_DIR" "$CONFIG_DIR"
 
-# Configuration par défaut
+# Default configuration
 if [ ! -f "$CONFIG_DIR/config.json" ]; then
-    echo "📋 Création de la configuration par défaut..."
+    echo "📋 Creating default configuration..."
     cp "$SCRIPT_DIR/config.json" "$CONFIG_DIR/"
 fi
 
-echo "📂 Répertoires configurés:"
+echo "📂 Configured directories:"
 echo "   Input:  $INPUT_DIR"
 echo "   Output: $OUTPUT_DIR"
 echo "   Config: $CONFIG_DIR"
 echo ""
 
-# Vérification du répertoire d'entrée
+# Check input directory
 if [ ! -d "$INPUT_DIR" ]; then
-    echo "❌ Répertoire d'entrée introuvable: $INPUT_DIR"
-    echo "💡 Créez le répertoire ou modifiez INPUT_DIR dans le script"
+    echo "❌ Input directory not found: $INPUT_DIR"
+    echo "💡 Create the directory or modify INPUT_DIR in the script"
     exit 1
 fi
 
-# Fonction de nettoyage
+# Cleanup function
 cleanup() {
     echo ""
-    echo "🧹 Nettoyage des conteneurs..."
+    echo "🧹 Cleaning up containers..."
     if [ "$WATCH_MODE" = true ]; then
         docker stop insta360-watch-mode 2>/dev/null || true
         docker rm -f insta360-watch-mode 2>/dev/null || true
@@ -107,20 +107,20 @@ cleanup() {
         docker stop insta360-single-run 2>/dev/null || true
         docker rm -f insta360-single-run 2>/dev/null || true
     fi
-    echo "✅ Nettoyage terminé"
+    echo "✅ Cleanup completed"
 }
 
-# Trap pour nettoyage automatique
+# Trap for automatic cleanup
 trap cleanup EXIT INT TERM
 
-# Build de l'image Docker si nécessaire
-echo "🔧 Vérification de l'image Docker..."
+# Build Docker image if necessary
+echo "🔧 Checking Docker image..."
 if ! docker image inspect insta360-auto-converter:latest >/dev/null 2>&1; then
-    echo "🏗️ Construction de l'image Docker..."
+    echo "🏗️ Building Docker image..."
     cd "$SCRIPT_DIR"
     docker-compose build
 else
-    echo "✅ Image Docker prête"
+    echo "✅ Docker image ready"
 fi
 
 # Configuration Docker commune
@@ -136,10 +136,10 @@ DOCKER_ENV=(
     -e MESA_GL_VERSION_OVERRIDE=4.5
 )
 
-# Lancement selon le mode
+# Launch according to mode
 if [ "$WATCH_MODE" = true ]; then
-    echo "🔄 Démarrage du mode WATCH..."
-    echo "   Pressez Ctrl+C pour arrêter"
+    echo "🔄 Starting WATCH mode..."
+    echo "   Press Ctrl+C to stop"
     echo ""
     
     docker run --rm -it \
@@ -148,10 +148,11 @@ if [ "$WATCH_MODE" = true ]; then
         "${DOCKER_ENV[@]}" \
         --memory=4g \
         --cpus=2 \
+        --entrypoint="" \
         insta360-auto-converter:latest \
         bash -c "Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX +render -noreset & sleep 2 && /app/build/insta360_batch_processor /data/input /data/output /data/config/config.json --watch; kill \$! 2>/dev/null || true"
 else
-    echo "🎯 Démarrage du mode SINGLE..."
+    echo "🎯 Starting SINGLE mode..."
     echo ""
     
     docker run --rm \
@@ -160,10 +161,11 @@ else
         "${DOCKER_ENV[@]}" \
         --memory=4g \
         --cpus=2 \
+        --entrypoint="" \
         insta360-auto-converter:latest \
         bash -c "Xvfb :99 -screen 0 1024x768x24 -ac +extension GLX +render -noreset & sleep 2 && /app/build/insta360_batch_processor /data/input /data/output /data/config/config.json; kill \$! 2>/dev/null || true"
     
     echo ""
-    echo "✅ Traitement terminé!"
-    echo "📁 Fichiers convertis disponibles dans: $OUTPUT_DIR"
+    echo "✅ Processing completed!"
+    echo "📁 Converted files available in: $OUTPUT_DIR"
 fi

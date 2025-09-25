@@ -7,6 +7,7 @@
 #include "ins_stitcher.h"   // Contains VideoStitcher and ImageStitcher classes
 #include "ins_common.h"     // Contains common types and enums
 #include "exif_metadata.h"  // For adding 360° EXIF metadata
+#include "resolution_detector.h"  // For dynamic resolution detection
 
 namespace fs = std::filesystem;
 
@@ -41,12 +42,12 @@ int main(int argc, char* argv[]) {
         std::string output_path = (fs::path(output_dir) / (fs::path(input).stem().string() + ".mp4")).string();
         videoStitcher->SetOutputPath(output_path);
 
-        // Paramètres (optionnels)
-        videoStitcher->EnableFlowState(true);      // stabilisation
+        // Parameters (optional)
+        videoStitcher->EnableFlowState(true);      // stabilization
         videoStitcher->EnableDirectionLock(true);  // direction lock
-        videoStitcher->EnableH265Encoder();        // H.265 si dispo
+        videoStitcher->EnableH265Encoder();        // H.265 if available
         videoStitcher->SetOutputBitRate(60LL * 1000 * 1000); // 60 Mbps
-        videoStitcher->SetOutputSize(3840, 1920);  // 4K (ratio 2:1)
+        videoStitcher->SetOutputSize(3840, 1920);  // 4K (2:1 ratio)
 
         videoStitcher->SetStitchProgressCallback([&](int progress, int error) {
             std::cout << "\rProgress: " << progress << "%" << std::flush;
@@ -69,12 +70,16 @@ int main(int argc, char* argv[]) {
         std::string output_path = (fs::path(output_dir) / (fs::path(input).stem().string() + ".jpg")).string();
         imageStitcher->SetOutputPath(output_path);
 
+        // 🔍 DYNAMIC RESOLUTION DETECTION 
+        // Automatically detect optimal resolution based on camera model
+        ResolutionInfo resolution = detectOptimalResolution(input);
+        
         // Configure for CPU-only processing in containerized environment
         imageStitcher->EnableCuda(false);
         imageStitcher->SetImageProcessingAccelType(ins::ImageProcessingAccel::kCPU);
         
-        // Set maximum output resolution (full resolution of Insta360 X4)
-        imageStitcher->SetOutputSize(11904, 5952);  // Maximum native resolution
+        // 📐 Set optimal resolution dynamically based on detected camera model
+        imageStitcher->SetOutputSize(resolution.width, resolution.height);
         
         // ✨ KEY OPTIMIZATION FOR PERFECT JUNCTIONS ✨
         // Use OPTFLOW instead of TEMPLATE for superior seam blending
@@ -93,9 +98,9 @@ int main(int argc, char* argv[]) {
             std::cout << "Export finished: " << output_path << std::endl;
             
             // Add 360° EXIF metadata to make the image recognizable as a panorama
-            // Use the actual output resolution we set (11904x5952 for maximum quality)
-            const int pano_width = 11904;   // Maximum native resolution width
-            const int pano_height = 5952;   // Maximum native resolution height (2:1 ratio)
+            // Use the dynamically detected resolution for metadata accuracy
+            const int pano_width = resolution.width;   // Dynamic resolution width
+            const int pano_height = resolution.height; // Dynamic resolution height
             
             std::cout << "Adding 360° EXIF metadata..." << std::endl;
             if (add360ExifMetadata(output_path, input, pano_width, pano_height)) {
